@@ -48,12 +48,11 @@ def start_desktop():
             
             if event.type == MOUSEMOTION:
                 pos = pg.mouse.get_pos()
-                print(pos)
+                #print(pos)
                 
         desktop.draw(screen)
         pg.display.flip()
         clock.tick(60)
-         
 def toggle_applications(desktop):
     global app_image_menu
     try:

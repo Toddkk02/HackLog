@@ -1,5 +1,6 @@
 import pygame as pg
 import random
+from task import *
 from config import *
 from terminal import Terminal
 from browser import Browser
@@ -11,12 +12,13 @@ class Desktop:
         self.screen = screen
         self.background = None
         self.dash_to_dock = None
+        self.task_manager = TaskManager(self)  # Create task manager first
+        
         # Initialize button rects
         self.app_button_rect = pg.Rect(0, 0, 0, 0)
         self.terminal_button_rect = pg.Rect(0, 0, 0, 0)
         self.browser_button_rect = pg.Rect(0, 0, 0, 0)
         self.load_images()
-        # Do initial draw to set up button positions
         self.setup_buttons()
 
     def load_images(self):
@@ -58,7 +60,9 @@ class Desktop:
         if len(self.terminals) > 5:
             x = random.randint(0, screen_width - 500)
             y = random.randint(0, screen_height - 300)
-        terminal = Terminal(x=x, y=y)
+        
+        # Create terminal with task_manager reference
+        terminal = Terminal(x=x, y=y, task_manager=self.task_manager)
         self.terminals.append(terminal)
         return terminal
 
@@ -73,6 +77,7 @@ class Desktop:
         return browser
 
     def handle_events(self, event):
+        self.task_manager.handle_event(event)
         # Handle terminal events
         for terminal in self.terminals[:]:
             if terminal.handle_event(event):
@@ -87,6 +92,8 @@ class Desktop:
     def draw(self, screen):
         # Draw background
         screen.blit(self.background, (0, 0))
+        
+        self.task_manager.draw(screen)
         
         # Draw dock
         dock_width, dock_height = self.dash_to_dock.get_size()

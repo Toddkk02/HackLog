@@ -4,7 +4,7 @@ from config import *
 from memory import *
 
 class Terminal:
-    def __init__(self, width=500, height=300, x=400, y=200):
+    def __init__(self, width=500, height=300, x=400, y=200, task_manager=None):
         self.width = width
         self.height = height
         self.x = x
@@ -16,11 +16,15 @@ class Terminal:
         self.font = pg.font.SysFont("Fira Code Medium", 16)
         self.surface.fill((40, 40, 40))
         
+        # Task manager reference
+        self.task_manager = task_manager
+        print(f"Terminal initialized with task_manager: {task_manager}")  # Debug
+        
         # Input handling
         self.current_input = ""
         self.cursor_visible = True
         self.cursor_timer = 0
-        self.cursor_blink_time = 500  # milliseconds
+        self.cursor_blink_time = 500
         
         # Command history
         self.command_history = []
@@ -67,14 +71,12 @@ class Terminal:
     def add_new_prompt(self):
         prompt = f"{self.player_name}@{self.hostname}:~$ "
         self.lines.append(("prompt", prompt))
-        # Auto-scroll when adding new prompt
         max_scroll = max(0, len(self.lines) * self.line_height - (self.height - self.title_bar_height))
         self.scroll_offset = max_scroll
 
     def add_output(self, text, color=WHITE):
         for line in text.split('\n'):
             self.lines.append(("output", line, color))
-        # Auto-scroll when adding output
         max_scroll = max(0, len(self.lines) * self.line_height - (self.height - self.title_bar_height))
         self.scroll_offset = max_scroll
 
@@ -152,66 +154,66 @@ class Terminal:
 
     def execute_command(self, command):
         global current_path
+        
+        # Prima notifica il task manager del comando
+        if self.task_manager:
+            print(f"Terminal executing command: {command}")  # Debug
+            self.task_manager.handle_terminal_input(self, command)
+        else:
+            print("No task manager connected to terminal")  # Debug
+        
         self.lines.append(("input", command))
         
-        # Calculate the maximum possible scroll offset based on content
         max_scroll = max(0, len(self.lines) * self.line_height - (self.height - self.title_bar_height))
-        # Set scroll to maximum to show latest content
         self.scroll_offset = max_scroll
-        
+
         if command == "clear":
             self.lines = []
+            
         elif command.startswith("cd"):
             parts = command.split()
             if len(parts) > 1:
                 new_dir = parts[1].strip()
-                # Handle special case for home directory
                 if new_dir == "~":
                     new_dir = f"/home/{self.player_name}"
-                # Handle special case for parent directory
                 elif new_dir == "..":
                     current_parts = current_path.split("/")
-                    if len(current_parts) > 1:  # Make sure we're not at root
+                    if len(current_parts) > 1:
                         new_dir = "/".join(current_parts[:-1])
-                        if new_dir == "":  # Handle case when we reach root
+                        if new_dir == "":
                             new_dir = "/"
                 else:
-                    # Normalize the path
                     if not new_dir.startswith("/"):
                         new_dir = f"{current_path}/{new_dir}"
-                    # Clean up any double slashes
                     new_dir = new_dir.replace('//', '/')
-                    
+
                 if new_dir in linux_file_system:
                     current_path = new_dir
                     self.add_output(f"Changed directory to '{current_path}'", GREEN)
                 else:
                     self.add_output(f"cd: {new_dir}: No such file or directory", RED)
             else:
-                # cd without arguments goes to user's home directory
                 home_dir = f"/home/{self.player_name}"
                 if home_dir in linux_file_system:
                     current_path = home_dir
                     self.add_output(f"Changed directory to '{current_path}'", GREEN)
                 else:
                     self.add_output(f"cd: Home directory not found", RED)
-        
+
         elif command.startswith("mkdir "):
             parts = command.split()
             if len(parts) > 1:
                 new_dir = parts[1].strip()
                 if not new_dir.startswith("/"):
                     new_dir = f"{current_path}/{new_dir}"
-                # Clean up any double slashes
                 new_dir = new_dir.replace('//', '/')
-                
+
                 if new_dir in linux_file_system:
                     self.add_output(f"mkdir: cannot create directory '{new_dir}': File exists", RED)
                 else:
                     parent_dir = "/".join(new_dir.split("/")[:-1])
                     if parent_dir in linux_file_system:
                         linux_file_system[new_dir] = []
-                        # Add the new directory name to its parent's listing
                         dir_name = new_dir.split("/")[-1]
                         if dir_name not in linux_file_system[parent_dir]:
                             linux_file_system[parent_dir].append(dir_name)
@@ -220,17 +222,15 @@ class Terminal:
                         self.add_output(f"mkdir: cannot create directory '{new_dir}': No such file or directory", RED)
             else:
                 self.add_output("mkdir: missing operand", RED)
-        
+
         elif command.startswith("ls"):
             parts = command.split()
-            path = current_path  # Default to current path if no path specified
-            
+            path = current_path
+
             if len(parts) > 1:
                 path_arg = parts[1].strip()
-                # Handle home directory shortcut
                 if path_arg == "~":
                     path = f"/home/{self.player_name}"
-                # Handle parent directory
                 elif path_arg == "..":
                     path_parts = current_path.split("/")
                     if len(path_parts) > 1:
@@ -238,11 +238,10 @@ class Terminal:
                         if path == "":
                             path = "/"
                 else:
-                    # Normalize the path
                     if not path_arg.startswith('/'):
                         path = f"{current_path}/{path_arg}"
                     path = path.replace('//', '/')
-            
+
             if path in linux_file_system:
                 files = linux_file_system[path]
                 if files:
@@ -251,7 +250,7 @@ class Terminal:
                     self.add_output("Directory is empty", WHITE)
             else:
                 self.add_output(f"ls: cannot access '{path}': No such file or directory", RED)
-        
+
         elif command == "help":
             self.add_output("Available commands:", CYAN)
             self.add_output("  clear - Clear the terminal")
@@ -261,17 +260,16 @@ class Terminal:
             self.add_output("  mkdir [dir] - Create a new directory")
             self.add_output("  cd [dir] - Change directory")
             self.add_output("  exit - Close the terminal")
-        
+
         elif command.startswith("echo "):
             self.add_output(command[5:])
-        
+
         elif command == "exit":
             return True
-        
+
         else:
             self.add_output(f"Command not found: {command}", RED)
-        
-        # Update scroll offset again after adding all output
+
         max_scroll = max(0, len(self.lines) * self.line_height - (self.height - self.title_bar_height))
         self.scroll_offset = max_scroll
 

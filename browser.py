@@ -230,9 +230,10 @@ class Browser:
             elif element_type == "image":
                 _, x, y, w, h = data
                 pg.draw.rect(self.surface, LIGHT_GRAY, (x, y, w, h))
-                text = self.font.render("Logo Placeholder", True, BLACK)
-                text_rect = text.get_rect(center=(x + w//2, y + h//2))
-                self.surface.blit(text, text_rect)
+                logo = pg.image.load("assets/images/logo_dark_seeker.png")
+                logo = pg.transform.scale(logo, (w, h))
+                text_rect = logo.get_rect(center=(x + w//2, y + h//2))
+                self.surface.blit(logo, text_rect)
                 y_offset = y + h + 30
             
             elif element_type == "text":
