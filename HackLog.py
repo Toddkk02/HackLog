@@ -4,6 +4,7 @@ from config import *
 from terminal import Terminal
 from Desktop import Desktop
 from menu import *
+from browser import *
 import time
 import random
 import os
@@ -24,32 +25,35 @@ def main():
 def start_desktop():
     desktop = Desktop()
     clock = pg.time.Clock()
-    
     while True:
         for event in pg.event.get():
             if event.type == QUIT:
                 pg.quit()
                 exit()
-            
             if event.type == KEYDOWN:
                 if event.key == K_ESCAPE:
                     toggle_applications(desktop)
-                    
             if event.type == MOUSEBUTTONDOWN:
                 pos = pg.mouse.get_pos()
                 if desktop.app_button_rect.collidepoint(pos):
                     toggle_applications(desktop)
                 elif desktop.terminal_button_rect.collidepoint(pos):
                     desktop.create_terminal()
+                elif desktop.browser_button_rect.collidepoint(pos):
+                    # Modifica questa parte
+                    desktop.create_browser()  # Usa il metodo della classe Desktop
+            
+            # Gestisci gli eventi per tutte le finestre
+            desktop.handle_events(event)
+            
             if event.type == MOUSEMOTION:
                 pos = pg.mouse.get_pos()
                 print(pos)
-            desktop.handle_events(event)
-        
+                
         desktop.draw(screen)
         pg.display.flip()
         clock.tick(60)
-
+         
 def toggle_applications(desktop):
     global app_image_menu
     try:
